@@ -12,6 +12,7 @@ class ApecApiController extends Controller
     /**
      * @return string
      */
+    //php yii apec-api/create-order
     public function actionCreateOrder()
     {
         $params='{
@@ -35,7 +36,8 @@ class ApecApiController extends Controller
             "DeliveryPointID": 0
         }';
         $apecApi= new ApecApiComponent();
-        $apecApi->createOrder($params);
+        $response=$apecApi->createOrder($params);
+        print_r($response.PHP_EOL);
         exit(1);
     }
 
@@ -43,11 +45,13 @@ class ApecApiController extends Controller
      * @param $orderID
      * @return void
      */
+    //php yii apec-api/status-order
     public function actionStatusOrder($orderID)
     {
 //        $orderID=10;
         $apecApi= new ApecApiComponent();
-        $apecApi->statusOrder($orderID);
+        $response=$apecApi->statusOrder($orderID);
+        print_r($response.PHP_EOL);
         exit(1);
     }
 }

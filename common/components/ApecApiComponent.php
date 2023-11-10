@@ -18,15 +18,16 @@ use yii\helpers\Json;
  */
 class ApecApiComponent extends Component
 {
-
     const URL_BASE = 'https://api.apec-uae.com';
     const URL_GET_TOKEN = '/token';
-    const URL_CREATE_ORDER = '/api/order';
-    const URL_VIEW_ORDER = '/api/status';
-
-
-
-    private $token=null;
+    const CREATE_ORDER = [
+        CURLOPT_URL => self::URL_BASE.'/api/order',
+        CURLOPT_CUSTOMREQUEST => 'POST',
+    ];
+    const STATUS_ORDER = [
+        CURLOPT_CUSTOMREQUEST => 'GET',
+    ];
+    private $httpHeader=[];
 
     /**
      * @return void
@@ -34,60 +35,33 @@ class ApecApiComponent extends Component
     public function init()
     {
         parent::init();
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => self::URL_BASE.self::URL_GET_TOKEN,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 0,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS =>'username='.Yii::$app->params['api.apec-uae.login'].'&password='.Yii::$app->params['api.apec-uae.password'].'&grant_type=password',
-                CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
-            ));
-            $response = Json::decode(curl_exec($curl));
-            curl_close($curl);
+        $option=[
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_URL => self::URL_BASE.self::URL_GET_TOKEN,
+            CURLOPT_POSTFIELDS =>'username='.Yii::$app->params['api.apec-uae.login'].'&password='.Yii::$app->params['api.apec-uae.password'].'&grant_type=password',
+        ];
+        $response=Json::decode($this->curl($option));
+        if (isset($response['error'])){
+            echo $response['error'].PHP_EOL;
+            exit(1);
+        }
 
-            if (isset($response['error'])){
-                echo $response['error'].PHP_EOL;
-                exit(1);
-            }
-
-            if (isset($response['access_token'])){
-                $this->token=$response['access_token'];
-            }else{
-                throw  new InvalidArgumentException('Token is not set');
-            }
+        if (isset($response['access_token'])){
+            $this->httpHeader=[
+                'Authorization: Bearer '.$response['access_token'],
+                'Content-Type: application/json',
+            ];
+        }
     }
 
     /**
-     * @param $params
+     * @param $postfields
      * @return never|null
      */
-    public function createOrder($params)
+    public function createOrder($postfields)
     {
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => self::URL_BASE.self::URL_CREATE_ORDER,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS =>$params,
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer '.$this->token,
-                'Content-Type: application/json'
-            ),
-        ));
-        $response = curl_exec($curl);
-        curl_close($curl);
-        return $this->rezult($response);
+        $option=ArrayHelper::merge(self::CREATE_ORDER,[CURLOPT_POSTFIELDS=>$postfields]);
+        return $this->rezult($this->curl($option));
     }
 
     /**
@@ -95,21 +69,8 @@ class ApecApiComponent extends Component
      * @return never|null
      */
     public function statusOrder($orderID){
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => self::URL_BASE.self::URL_VIEW_ORDER.'/'.$orderID,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array('Authorization: Bearer '.$this->token),
-        ));
-        $response = curl_exec($curl);
-        curl_close($curl);
+        $option=ArrayHelper::merge(self::STATUS_ORDER,[CURLOPT_URL => self::URL_BASE.'/api/status'.'/'.$orderID]);
+        $response=$this->curl($option);
         return $this->rezult($response);
     }
 
@@ -123,6 +84,30 @@ class ApecApiComponent extends Component
             exit(1);
         }
         return  print_r( Json::decode($response));
-//        return  dd( Json::decode($response));
+    }
+
+    /**
+     * @param $option
+     * @param $postfields
+     * @return bool|string
+     */
+    protected function curl($option){
+        $optionDefault=array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_HTTPHEADER => $this->httpHeader
+        );
+        $optionDefault=ArrayHelper::merge($optionDefault,$option);
+
+        $curl = curl_init();
+        curl_setopt_array($curl,$optionDefault);
+        $response = curl_exec($curl);
+        curl_close($curl);
+
+       return $response;
     }
 }
