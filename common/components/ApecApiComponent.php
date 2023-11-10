@@ -51,7 +51,7 @@ class ApecApiComponent extends Component
             curl_close($curl);
 
             if (isset($response['error'])){
-                echo $response['error'];
+                echo $response['error'].PHP_EOL;
                 exit(1);
             }
 
@@ -119,9 +119,10 @@ class ApecApiComponent extends Component
      */
     protected function rezult($response){
         if (isset($response['error'])){
-            dd($response['error']);
+            echo $response['error'].PHP_EOL;
             exit(1);
         }
-        return  dd( Json::decode($response));
+        return  print_r( Json::decode($response));
+//        return  dd( Json::decode($response));
     }
 }

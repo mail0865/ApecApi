@@ -36,7 +36,7 @@ class ApecApiController extends Controller
         }';
         $apecApi= new ApecApiComponent();
         $apecApi->createOrder($params);
-        return $this->render('index',['disk'=>$apecApi]);
+        exit(1);
     }
 
     /**
@@ -45,8 +45,9 @@ class ApecApiController extends Controller
      */
     public function actionStatusOrder($orderID)
     {
-        $orderID=10;
+//        $orderID=10;
         $apecApi= new ApecApiComponent();
         $apecApi->statusOrder($orderID);
+        exit(1);
     }
 }
