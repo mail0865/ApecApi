@@ -40,17 +40,14 @@ class ApecApiComponent extends Component
             CURLOPT_URL => self::URL_BASE.self::URL_GET_TOKEN,
             CURLOPT_POSTFIELDS =>'username='.Yii::$app->params['api.apec-uae.login'].'&password='.Yii::$app->params['api.apec-uae.password'].'&grant_type=password',
         ];
-        $response=Json::decode($this->curl($option));
-        if (isset($response['error'])){
-            echo $response['error'].PHP_EOL;
-            exit(1);
-        }
-
+        $response=$this->rezult($this->curl($option));;
         if (isset($response['access_token'])){
             $this->httpHeader=[
                 'Authorization: Bearer '.$response['access_token'],
                 'Content-Type: application/json',
             ];
+        }else{
+            throw  new InvalidArgumentException('Token is not set');
         }
     }
 
@@ -70,8 +67,7 @@ class ApecApiComponent extends Component
      */
     public function statusOrder($orderID){
         $option=ArrayHelper::merge(self::STATUS_ORDER,[CURLOPT_URL => self::URL_BASE.'/api/status'.'/'.$orderID]);
-        $response=$this->curl($option);
-        return $this->rezult($response);
+        return $this->rezult($this->curl($option));
     }
 
     /**
@@ -79,11 +75,18 @@ class ApecApiComponent extends Component
      * @return never|void|null
      */
     protected function rezult($response){
+        if($response==false){
+            echo 'Ошибка соединения сервером'.PHP_EOL;
+            exit(1);
+        }
+
+        $response=Json::decode($response);
         if (isset($response['error'])){
             echo $response['error'].PHP_EOL;
             exit(1);
         }
-        return  print_r( Json::decode($response));
+
+        return $response;
     }
 
     /**
