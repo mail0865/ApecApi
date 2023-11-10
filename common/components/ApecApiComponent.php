@@ -18,6 +18,45 @@ use yii\helpers\Json;
  */
 class ApecApiComponent extends Component
 {
+    const GET_STATUS_ORDER=[
+        '0'=> ' полностью размещён',
+        '1' => ' размещён частично',
+        '2' => ' не размещён',
+    ];
+    const FIND_STATUS_ORDER=[
+        '1'=> ' новый',
+        '2' => ' в работе',
+        '3' => ' завершён',
+    ];
+    const ORDER_PLACED_LINES=[
+        '0'=>'Строка успешна размещена',
+        '1'=>'Строка успешно размещена. Количество выровнено по кратности вверх.',
+        '2'=>'Строка успешно размещена. Количество выровнено по кратности вниз (со снижением до остатка при необходимости).',
+        '10'=>'Строка не размещена. Не указано одно из ключевых значений: Brand, PartNumber, SupplierID',
+        '11'=>'Строка не размещена. Не указано количество Count.',
+        '12'=>'Строка не размещена. Не указана реакция на коллизию по количеству ReactionByCount.',
+        '13'=>'Строка не размещена. Не указана реакция на коллизию по цене ReactionByPrice.',
+        '20'=>'Строка не размещена. Коллизия по количеству.',
+        '30'=>'Строка не размещена. Коллизия по цене.',
+        '99'=>'Строка не размещена. Позиция не найдена в остатках.',
+    ];
+    const ORDER_LINES=[
+        '240'=>'new order (Новый заказ)',
+        '10'=>'new order (Новый заказ)',
+        '40'=>'the order is accepted (Заказ принят)',
+        '50'=>'sent to the supplier (Отправлен поставщику)',
+        '70'=>'quantity change (Изменение количества)',
+        '80'=>'delay (Задержка)',
+        '90'=>'superseded part (Переход номера)',
+        '100'=>'price change (Изменение цены)',
+        '120'=>'in stock (Поступил на склад)',
+        '140'=>'ready for dispatch (Готово к выдаче)',
+        '160'=>'received by the customer (Получен клиентом)',
+        '180'=>'delivery is impossible (Поставка невозможна)',
+        '190'=>'dispatch is impossible temporarily (Выдача невозможна)',
+        '200'=>'canceled by the customer (Отказ клиента)',
+    ];
+
     const URL_BASE = 'https://api.apec-uae.com';
     const URL_GET_TOKEN = '/token';
     const CREATE_ORDER = [
@@ -55,19 +94,24 @@ class ApecApiComponent extends Component
      * @param $postfields
      * @return never|null
      */
-    public function createOrder($postfields)
+    public function createOrder($postfields,$getStatusOrder=false)
     {
-        $option=ArrayHelper::merge(self::CREATE_ORDER,[CURLOPT_POSTFIELDS=>$postfields]);
-        return $this->rezult($this->curl($option));
+        $option=ArrayHelper::merge(self::CREATE_ORDER,[CURLOPT_POSTFIELDS=>Json::encode($postfields)]);
+        $response=$this->rezult($this->curl($option));
+        if ($getStatusOrder) $this->getStatusOrder($response);
+        return $response;
     }
+
 
     /**
      * @param $orderID
      * @return never|null
      */
-    public function statusOrder($orderID){
+    public function statusOrder($orderID,$findStatusOrder=false){
         $option=ArrayHelper::merge(self::STATUS_ORDER,[CURLOPT_URL => self::URL_BASE.'/api/status'.'/'.$orderID]);
-        return $this->rezult($this->curl($option));
+        $response=$this->rezult($this->curl($option));
+        if ($findStatusOrder) $this->findStatusOrder($response);
+        return $response;
     }
 
     /**
@@ -76,7 +120,7 @@ class ApecApiComponent extends Component
      */
     protected function rezult($response){
         if($response==false){
-            echo 'Ошибка соединения сервером'.PHP_EOL;
+            echo 'Ошибка соединения с сервером'.PHP_EOL;
             exit(1);
         }
 
@@ -85,7 +129,6 @@ class ApecApiComponent extends Component
             echo $response['error'].PHP_EOL;
             exit(1);
         }
-
         return $response;
     }
 
@@ -112,5 +155,24 @@ class ApecApiComponent extends Component
         curl_close($curl);
 
        return $response;
+    }
+    /**
+     * @param $response
+     * @return void
+     */
+    public function getStatusOrder($response){
+        echo 'Заказ №'.$response['OrderId'].self::GET_STATUS_ORDER[$response['Status']].PHP_EOL;
+        foreach ($response['OrderPlacedLines'] as $item)
+            echo 'Позиция '.$item['Brand'].' '.$item['PartNumber'].' '.self::ORDER_PLACED_LINES[$item['Status']].PHP_EOL;
+    }
+
+    /**
+     * @param $response
+     * @return void
+     */
+    public function findStatusOrder($response){
+        echo 'Заказ №'.$response['OrderID'].self::FIND_STATUS_ORDER[$response['Status']].PHP_EOL;
+        foreach ($response['OrderLines'] as $item)
+            echo 'Позиция '.$item['Brand'].' '.$item['PartNumber'].' '.self::ORDER_LINES[$item['CurrentStatus']].PHP_EOL;
     }
 }
